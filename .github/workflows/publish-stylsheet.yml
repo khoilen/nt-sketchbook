@@ -13,15 +13,15 @@ permissions:
 
 jobs:
   publish:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, 'chore: bump stylesheet')
-    timeout-minutes: 100
-    runs-on: ubuntu-latest
+     if: ${{ github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, 'chore: bump stylesheet') }}
+     timeout-minutes: 100
+     runs-on: ubuntu-latest
 
-    defaults:
+     defaults:
       run:
         working-directory: apps/nt-stylesheet
 
-    steps:
+     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -37,7 +37,7 @@ jobs:
           node-version: 20.18.2
           cache: 'pnpm'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@nashtech-garage'
+          scope: '@khoilen'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -75,6 +75,6 @@ jobs:
           tag_name: stylesheet@${{ steps.get_version.outputs.new_version }}
           name: stylesheet v${{ steps.get_version.outputs.new_version }}
           body: |
-            📦 Released @nashtech-garage/stylesheet v${{ steps.get_version.outputs.new_version }}
+            📦 Released @khoilen/stylesheet v${{ steps.get_version.outputs.new_version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
