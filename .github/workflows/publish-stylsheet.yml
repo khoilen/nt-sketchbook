@@ -1,0 +1,80 @@
+name: Publish Stylesheet
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  publish:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, 'chore: bump stylesheet')
+    timeout-minutes: 100
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/nt-stylesheet
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.7.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.18.2
+          cache: 'pnpm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@nashtech-garage'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Bump version
+        run: |
+          pnpm version patch --no-git-tag-version
+
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "new_version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if version already exists on GitHub Packages
+        run: |
+          PKG_NAME=$(jq -r '.name' package.json)
+          if npm view "$PKG_NAME@$VERSION" --registry=https://npm.pkg.github.com > /dev/null 2>&1; then
+            echo "⚠️ Version $VERSION already exists. Skipping publish."
+            exit 0
+          fi
+
+      - name: Build lib
+        run: pnpm run build
+
+      - name: Publish to GitHub
+        run: pnpm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: stylesheet@${{ steps.get_version.outputs.new_version }}
+          name: stylesheet v${{ steps.get_version.outputs.new_version }}
+          body: |
+            📦 Released @nashtech-garage/stylesheet v${{ steps.get_version.outputs.new_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
